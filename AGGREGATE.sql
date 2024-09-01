@@ -107,3 +107,74 @@ order by st;
 select establishment_number,company,city,st,zip
 from meat_poultry_egg_establishments
 where st is null;
+
+-- scanning the unduplicated values to spot variations in spelling of names of companies and other attributes
+-- using GROUP BY and COUNT() to find inconsistent company names
+select company, count(*) as company_count
+from meat_poultry_egg_establishments
+group by company
+order by company asc;
+
+-- using length() and count() to test the zip column
+select length(zip), count(*) as length_count
+from meat_poultry_egg_establishments
+group by length(zip)
+order by length(zip) asc;
+
+-- Filtering with length() to find short zip values
+select st, count(*) as st_count
+from meat_poultry_egg_establishments
+where length(zip) < 5
+group by st
+order by st asc;
+
+-- creating a back up table
+create table meat_poultry_egg_establishments_backup as
+select * from meat_poultry_egg_establishments;
+
+-- check the number of records
+select * from meat_poultry_egg_establishments_backup;
+
+select 
+(select count(*) from meat_poultry_egg_establishments) as original,
+(select count(*) from meat_poultry_egg_establishments_backup) as backup;
+
+-- Creating and filling the st_copy column with ALTER TABLE and UPDATE
+ALTER TABLE meat_poultry_egg_establishments ADD COLUMN st_copy text;
+select * from meat_poultry_egg_establishments;
+UPDATE meat_poultry_egg_establishments
+SET st_copy=st;
+
+alter table meat_poultry_egg_establishments
+alter column st_copy type varchar(2);
+
+-- checking values in the st and st_copy columns
+-- 1. scroll down as you check
+select st, st_copy
+from meat_poultry_egg_establishments
+order by st;
+
+-- 2. alternatively
+select st, st_copy
+from meat_poultry_egg_establishments
+where st is distinct from st_copy
+order by st;
+
+-- updating the st column for 3 establishments
+update meat_poultry_egg_establishments
+set st = 'MN'
+where establishment_number = 'V18677A'
+
+UPDATE meat_poultry_egg_establishments
+SET st = 'AL'
+WHERE establishment_number = 'M45319+P45319';
+
+UPDATE meat_poultry_egg_establishments
+SET st = 'WI'
+WHERE establishment_number = 'M263A+P263A+V263A'
+RETURNING establishment_number, company, city, st, zip; -- this clause returns the specified columns from the updated row(s).
+
+-- This query will return the columns of interest for all the rows you updated in your previous UPDATE statements.
+SELECT establishment_number, company, city, st, zip
+FROM meat_poultry_egg_establishments
+WHERE establishment_number IN ('V18677A', 'M45319+P45319', 'M263A+P263A+V263A');
