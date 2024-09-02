@@ -178,3 +178,281 @@ RETURNING establishment_number, company, city, st, zip; -- this clause returns t
 SELECT establishment_number, company, city, st, zip
 FROM meat_poultry_egg_establishments
 WHERE establishment_number IN ('V18677A', 'M45319+P45319', 'M263A+P263A+V263A');
+
+-- Creating and filling the company_standard column
+ALTER TABLE meat_poultry_egg_establishments
+ADD COLUMN company_standard varchar(100);
+
+UPDATE meat_poultry_egg_establishments
+SET company_standard = company;
+
+select company, company_standard
+from meat_poultry_egg_establishments
+where company is distinct from company_standard
+order by company;
+
+-- Using an UPDATE statement to modify column values that match a string
+UPDATE 	meat_poultry_egg_establishments
+SET company_standard = 'Armour-Eckrich Meats'
+WHERE company LIKE 'Armour%'
+RETURNING company, company_standard;
+
+-- query to retrieve the rows that were updated
+select company, company_standard
+from meat_poultry_egg_establishments
+where company ILIKE 'armour%';
+
+-- repairing zip codes using concatenation
+select *
+from meat_poultry_egg_establishments
+where length(zip)<5
+order by length(zip);
+
+-- Creating and filling the zip_copy column
+ALTER TABLE meat_poultry_egg_establishments
+ADD COLUMN zip_copy varchar(5);
+
+UPDATE meat_poultry_egg_establishments
+SET zip_copy = zip;
+
+select zip, zip_copy
+from meat_poultry_egg_establishments
+where zip is distinct from zip_copy;
+
+-- Modify codes in the zip column missing two leading zeros
+UPDATE meat_poultry_egg_establishments
+SET zip='0'||zip
+WHERE st IN ('CT', 'MA', 'ME', 'NJ', 'RI', 'VT')
+AND length(zip)=4;
+
+UPDATE meat_poultry_egg_establishments
+SET zip = '0' || zip
+WHERE st = 'NH'
+AND length(zip) = 4;
+
+UPDATE meat_poultry_egg_establishments
+SET zip='00'||zip
+WHERE st IN ('PR', 'VI') AND length(zip)=3;
+
+-- query that will return all the rows that were affected, by both the update statements
+
+SELECT establishment_number, company, city, st, zip
+FROM meat_poultry_egg_establishments
+WHERE 
+    -- First update: States with 4-digit zip codes prepended with '0'
+    (st IN ('CT', 'MA', 'ME', 'NJ', 'RI', 'VT', 'NH') AND length(zip) = 5 AND zip LIKE '0%')
+    OR
+    -- Second update: Territories with 3-digit zip codes prepended with '00'
+    (st IN ('PR', 'VI') AND length(zip) = 5 AND zip LIKE '00%');
+	
+-- alternatively
+SELECT establishment_number, company, city, st, zip
+FROM meat_poultry_egg_establishments
+WHERE st IN ('CT','MA','ME','NH','NJ','RI','VT','PR','VI');
+
+
+select length(zip_copy), count(*) as length_count
+from meat_poultry_egg_establishments
+group by length(zip_copy)
+order by length(zip_copy) asc;
+
+select length(zip), count(*) as length_count
+from meat_poultry_egg_establishments
+group by length(zip)
+order by length(zip) asc;
+
+-- Creating and filling a state_regions table
+CREATE TABLE state_regions (
+	st varchar(2) CONSTRAINT st_key PRIMARY KEY,
+	region varchar(20) NOT NULL
+);
+
+COPY state_regions
+FROM 'C:\Users\user\Documents\DATA_ANALYSIS\SQL\practical-sql-2-main\Chapter_10\state_regions.csv'
+WITH (FORMAT CSV, HEADER);
+
+SELECT * FROM state_regions;
+
+-- Adding and updating an inspection_deadline column
+ALTER TABLE meat_poultry_egg_establishments
+ADD COLUMN inspection_deadline timestamp with time zone;
+
+UPDATE meat_poultry_egg_establishments establishments
+SET inspection_deadline = '2024-12-01 00:00 EAT'
+WHERE EXISTS (SELECT state_regions.region
+			  FROM state_regions
+			  WHERE establishments.st = state_regions.st
+			  AND state_regions.region = 'New England'
+			  );
+
+select st, region
+from state_regions
+where region = 'New England'
+group by st, region
+order by st;
+
+SELECT st, inspection_deadline
+FROM meat_poultry_egg_establishments
+GROUP BY st, inspection_deadline
+ORDER BY st;
+
+SELECT st, inspection_deadline
+FROM meat_poultry_egg_establishments
+WHERE inspection_deadline IS NOT NULL
+GROUP BY st, inspection_deadline
+ORDER BY st;
+
+select st, inspection_deadline
+from meat_poultry_egg_establishments
+where inspection_deadline is not null
+order by st;
+
+select est.st, est.inspection_deadline, stat_es.st, stat_es.region
+from meat_poultry_egg_establishments est
+join state_regions stat_es
+on est.st = stat_es.st
+order by est.st;
+
+select est.st, est.inspection_deadline, stat_es.st, stat_es.region
+from meat_poultry_egg_establishments est
+join state_regions stat_es
+on est.st = stat_es.st
+where est.inspection_deadline is not null
+order by est.st;
+
+select est.st, est.inspection_deadline, stat_es.st, stat_es.region
+from meat_poultry_egg_establishments est
+join state_regions stat_es
+on est.st = stat_es.st
+where est.inspection_deadline is not null
+group by est.st, est.inspection_deadline, stat_es.st, stat_es.region
+order by est.st;
+
+-- Deleting rows matching an expression
+select st
+from meat_poultry_egg_establishments
+where st  = 'PR' or st='VI'
+order by st;
+
+delete from meat_poultry_egg_establishments
+where st in ('PR', 'VI');
+
+select count(*) from meat_poultry_egg_establishments --6201 from 6287
+
+-- Removing a column from a table using DROP
+alter table meat_poultry_egg_establishments
+drop column zip_copy
+
+-- Demonstrating a transaction block
+
+-- Start transaction and perform update
+START TRANSACTION;
+
+UPDATE meat_poultry_egg_establishments
+SET company = 'AGRO Merchantss Oakland LLC'
+WHERE company = 'AGRO Merchants Oakland, LLC';
+
+-- view changes
+SELECT company
+FROM meat_poultry_egg_establishments
+WHERE company LIKE 'AGRO%'
+ORDER BY company;
+
+-- Revert changes
+ROLLBACK;
+
+-- Alternately, commit changes at the end:
+START TRANSACTION;
+
+UPDATE meat_poultry_egg_establishments
+SET company = 'AGRO Merchants Oakland LLC'
+WHERE company = 'AGRO Merchants Oakland, LLC';
+
+COMMIT;
+
+
+-- How many of the plants in the table process meat (using the 'activities' column
+select count(company) as meat_processing_plants
+from meat_poultry_egg_establishments
+where activities ILIKE '%meat%';
+
+-- How many of the plants in the table process poultry (using the 'activities' column)
+select count(company) as poultry_processing_plants
+from meat_poultry_egg_establishments
+where activities ILIKE '%poultry%';
+
+-- Creating two new boolean columns called 'meat_processing' and 'poultry_processing'
+alter table meat_poultry_egg_establishments
+add column meat_processing boolean,
+add column poultry_processing boolean;
+
+-- Updating the 'meat_processing' column to TRUE for companies involved in meat processing
+update meat_poultry_egg_establishments
+set meat_processing=True
+where activities ilike '%meat%';
+
+-- Updating the 'poultry_processing' column to TRUE for companies involved in poultry processing
+update meat_poultry_egg_establishments
+set poultry_processing=True
+where activities ilike '%poultry%';
+
+-- Counting how many companies process meat using the newly created 'meat_processing' column
+select count(*) as meat_processing_plants
+from meat_poultry_egg_establishments
+where meat_processing=true;
+
+-- Counting how many companies process poultry using the newly created 'poultry_processing' column
+select count(*) as poultry_processing_plants
+from meat_poultry_egg_establishments
+where poultry_processing=true;
+
+-- Creating a new column to identify companies that process both meat and poultry
+ALTER TABLE meat_poultry_egg_establishments
+ADD COLUMN meat_and_poultry_processing BOOLEAN;
+
+-- Updating the 'meat_and_poultry_processing' column to TRUE if the company processes both meat and poultry
+update meat_poultry_egg_establishments
+set meat_and_poultry_processing=(meat_processing=true and poultry_processing=true);
+
+-- Selecting activities and the newly added columns for all companies
+select activities, meat_processing, poultry_processing, meat_and_poultry_processing
+from meat_poultry_egg_establishments;
+
+-- Counting how many companies process both meat and poultry based on the 'activities' column
+select count(company) as meat_and_poultry_processing_count
+from meat_poultry_egg_establishments
+where activities ilike '%meat%'
+and activities ilike '%poultry%';
+
+-- Alternatively, counting how many companies process both meat and poultry using the 'meat_and_poultry_processing' column
+select count(*) as meat_and_poultry_processing_count
+from meat_poultry_egg_establishments
+where meat_and_poultry_processing=true;
+
+-- Selecting rows where 'meat_and_poultry_processing' is NULL (indicating companies that do neither meat nor poultry processing)
+select activities, meat_processing, poultry_processing, meat_and_poultry_processing
+from meat_poultry_egg_establishments
+where meat_and_poultry_processing is null;
+
+-- Counting how many companies do neither meat nor poultry processing (where 'meat_and_poultry_processing' is NULL)
+select count(*) as none_meat_and_none_poultry_processing
+from meat_poultry_egg_establishments
+where meat_and_poultry_processing is null;
+
+-- Selecting rows where both 'meat_processing' and 'poultry_processing' are NULL
+-- This indicates companies that neither process meat nor poultry, and might do something else
+select activities, meat_processing, poultry_processing, meat_and_poultry_processing
+from meat_poultry_egg_establishments
+where meat_processing is null
+and poultry_processing is null;
+
+-- The questions on how many companies engage in meat processing and how many engage in poultry processing could  have been answered pretty easily without the need for extra columns but there is value in having dedicated boolean columns for clear and consistent analysis
+
+-- these additional columns have several other benefits
+-- 1. clear classification: we now have astructures way to filter companies that do meat processing, poultry processing, or both, without worrying about inconsistent or irrellevant data in the `activities` column.
+
+-- 2. Handling NULL values: With boolean columns, I have easily differentiated rows that do not have either activity or even null values in the `activities`
+
+-- 3. Better performance: querying boolean columns for true/false is often more efficient than repeatedly using text based filters like ilike
+
+
