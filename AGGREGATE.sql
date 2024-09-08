@@ -454,5 +454,3 @@ and poultry_processing is null;
 -- 2. Handling NULL values: With boolean columns, I have easily differentiated rows that do not have either activity or even null values in the `activities`
 
 -- 3. Better performance: querying boolean columns for true/false is often more efficient than repeatedly using text based filters like ilike
-
-
