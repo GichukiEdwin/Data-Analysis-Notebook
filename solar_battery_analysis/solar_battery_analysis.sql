@@ -158,3 +158,41 @@ SELECT
 FROM 
     energy_analysis;
 
+select * from energy_analysis;
+
+select
+	avg(solar_generation_kwh) as average_solar_generation,
+	min(solar_generation_kwh) as minumum_solar_generation,
+	max(solar_generation_kwh) as maximum_solar_generation,
+	avg(electricity_usage_kwh) as average_electricity_usage,
+	min(electricity_usage_kwh) as minimum_electricity_usage,
+	max(electricity_usage_kwh) as maximum_electricity_usage
+from energy_analysis;
+
+select
+	date_trunc('day',datetime_start) as day,
+	avg(solar_generation_kwh) as daily_average_solar_generation
+from energy_analysis
+group by date_trunc('day', datetime_start)
+order by day;
+
+select
+	hour_of_day,
+	avg(solar_generation_kwh) as hourly_solar_generation
+from energy_analysis
+group by hour_of_day
+order by hour_of_day asc;
+
+select
+	date_trunc('day', datetime_start) as day,
+	avg(electricity_usage_kwh) as daily_average_electricity_usage
+from energy_analysis
+group by date_trunc('day', datetime_start)
+order by day asc;
+
+select
+	hour_of_day,
+	avg(electricity_usage_kwh) as hourly_average_electricity_usage
+from energy_analysis
+group by hour_of_day
+order by hour_of_day asc;
