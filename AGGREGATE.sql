@@ -454,3 +454,62 @@ and poultry_processing is null;
 -- 2. Handling NULL values: With boolean columns, I have easily differentiated rows that do not have either activity or even null values in the `activities`
 
 -- 3. Better performance: querying boolean columns for true/false is often more efficient than repeatedly using text based filters like ilike
+
+
+
+select * from us_counties_population_est_2019;
+
+select distinct count(county_name) from us_counties_population_est_2019;
+
+select * from percentile_test;
+
+select 
+percentile_cont(.5)
+within group (order by numbers),
+percentile_disc(.5)
+within group (order by numbers)
+from percentile_test;
+
+SELECT percentile_cont(ARRAY[.25,.5,.75])
+       WITHIN GROUP (ORDER BY pop_est_2019) AS quartiles
+FROM us_counties_population_est_2019;
+
+select pop_est_2019 from us_counties_population_est_2019 order by pop_est_2019 ASC;
+
+select percentile_cont(.5) within group(order by pop_est_2019) from us_counties_population_est_2019;
+
+select county_name, state_name, pop_est_2019
+from us_counties_population_est_2019
+where pop_est_2019 >= (
+select percentile_cont(.9)within group(order by pop_est_2019)
+from us_counties_population_est_2019)
+order by pop_est_2019 desc;
+
+-- using a subquery in a where clause with DELETE
+-- make a copy of the table to modify
+create table us_counties_2019_top10 as
+select * from us_counties_population_est_2019;
+
+select * from us_counties_2019_top10;
+
+delete from us_counties_2019_top10
+where pop_est_2019 < (
+select percentile_cont(.9) within group (order by pop_est_2019)
+from us_counties_2019_top10);
+
+
+select county_name, state_name, pop_est_2019
+from us_counties_2019_top10
+order by pop_est_2019 asc;
+
+-- subquery as a derived table in a from clause
+select
+	round(calcs.average, 0) as average,
+	calcs.median,
+	round(calcs.average-calcs.median, 0) as median_average_diff
+from (
+	select
+		avg(pop_est_2019)as average,
+		percentile_cont(.5) within group (order By pop_est_2019)::numeric as median
+	from us_counties_population_est_2019
+	) as calcs;
