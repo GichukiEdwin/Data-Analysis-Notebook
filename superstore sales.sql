@@ -72,3 +72,38 @@ group by
 	extract(month from order_date),
 	to_char(order_date, 'Month')
 order by 1;
+-- shipping delay
+select
+	ship_mode,
+	round(avg(ship_date - order_date),2) as avg_shipping_days,
+	count(*) as total_orders
+from super_store_sales
+group by ship_mode
+order by avg_shipping_days;
+-- customer order frequency distribution
+with customer_orders as (
+	select
+		customer_id,
+		segment,
+		count(distinct order_id) as total_distinct_orders
+	from super_store_sales
+	group by 1,2
+)
+select
+	segment,
+	total_distinct_orders,
+	count(customer_id) as customer_count
+from customer_orders
+group by segment, total_distinct_orders
+order by segment, total_distinct_orders;
+-- most common category combination
+select
+	a.category as product_a,
+	b.category as product_b,
+	count(distinct a.order_id) as times_purchased_together
+from super_store_sales a
+join super_store_sales b
+	on a.order_id = b.order_id
+	and a.category < b.category
+group by a.category, b.category
+order by times_purchased_together desc;
