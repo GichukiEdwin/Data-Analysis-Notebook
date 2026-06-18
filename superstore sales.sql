@@ -107,3 +107,25 @@ join super_store_sales b
 	and a.category < b.category
 group by a.category, b.category
 order by times_purchased_together desc;
+-- cumulative revenue
+with sub_category_revenue as (
+	select
+		subcategory,
+		sum(sales) as total_sales
+	from super_store_sales
+	group by subcategory
+),
+running_revenue as (
+	select
+		subcategory,
+		total_sales,
+		sum(total_sales) over (order by total_sales desc) as running_total,
+		sum(total_sales) over () as grand_total
+	from sub_category_revenue
+)
+select
+	subcategory,
+	round(total_sales, 2) as sales,
+	round((running_total / grand_total) * 100, 2) as cumulative_percentage
+from running_revenue
+order by sales desc;
