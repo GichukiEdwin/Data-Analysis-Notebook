@@ -62,6 +62,13 @@ limit 10;
 select
 	count(distinct product_name)
 from super_store_sales;
+-- Yearly sales trend
+select
+	extract(year from order_date) as sales_year,
+	sum(sales) as total_sales
+from super_store_sales
+group by sales_year
+order by sales_year;
 -- Monthly sales trend
 select
 	extract(month from order_date) as month,
@@ -72,7 +79,21 @@ group by
 	extract(month from order_date),
 	to_char(order_date, 'Month')
 order by 1;
--- shipping delay
+-- Monthly sales trend
+select
+	date_trunc('month', order_date) as sales_month,
+	sum(sales) monthly_sales
+from super_store_sales
+group by sales_month
+order by sales_month;
+-- Daily sales trend
+select
+	order_date,
+	sum(sales) as total_sales
+from super_store_sales
+group by 1
+order by 1;
+-- shipping delay/average shipping time by shipping mode
 select
 	ship_mode,
 	round(avg(ship_date - order_date),2) as avg_shipping_days,
